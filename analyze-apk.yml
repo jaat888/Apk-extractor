@@ -1,0 +1,51 @@
+name: Analyze APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "input/*.apk"
+      - ".github/workflows/analyze-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find APK
+        id: apk
+        shell: bash
+        run: |
+          set -e
+          APK="$(find input -maxdepth 1 -type f -iname '*.apk' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "No APK found in input/"
+            echo "Put your APK inside input/ and run the workflow again."
+            exit 1
+          fi
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "Found: $APK"
+
+      - name: Prepare tools
+        shell: bash
+        run: |
+          chmod +x analyze.sh
+
+      - name: Analyze APK
+        shell: bash
+        run: |
+          ./analyze.sh "${{ steps.apk.outputs.apk }}"
+
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-analysis
+          path: analysis-output/
+          if-no-files-found: warn
+          retention-days: 7
